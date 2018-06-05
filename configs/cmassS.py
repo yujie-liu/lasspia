@@ -1,3 +1,4 @@
+# On 5/24/18 ZB changed the theta binning to make the argument type correct
 import lasspia as La
 import math
 
@@ -23,19 +24,20 @@ class cmassS(La.configuration):
         return La.wrapObservedSDSS(self.inputFilesObserved(), shiftRA=True)
 
     def binningZ(self): return {"bins":900, "range":(0.43,0.7)}
-    def binningRA(self): return {"bins": 2200, "range":(-50,50)}
-    def binningDec(self): return {"bins":800, "range":(-10,20)}
-    def binningTheta(self): return {"bins":3142/2, "range":(0,math.pi/2)}
-
+    def binningRA(self): return {"bins": 2000, "range":(-50,50)}
+    def binningDec(self): return {"bins":1500, "range":(-10,20)}
+    #----------------------------------------------------------------------
+    def binningTheta(self): return {"bins":1500, "range":(0,math.pi/2)}
+    #----------------------------------------------------------------------
     def chunkSize(self): return 2000
 
 
     '''Parameters for avoiding unnecessary combinatorial calculations at large s.
     Galaxies farther apart than these parameters may not be included in result.'''
 
-    def maxDeltaRA(self): return 25
-    def maxDeltaDec(self): return 25
-    def maxDeltaZ(self): return 0.1002
+    def maxDeltaRA(self): return 19
+    def maxDeltaDec(self): return 19
+    def maxDeltaZ(self): return 0.33
 
 
     '''Configuration affecting only the "integration" routine.'''
@@ -52,4 +54,4 @@ class cmassS(La.configuration):
         '''Speed of light in km/s'''
         return 299792
 
-    def binningS(self): return {"bins":1500, "range":(0,6000)}
+    def binningS(self): return {"bins":200, "range":(0,400)}
