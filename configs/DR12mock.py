@@ -1,7 +1,8 @@
+# On 5/24/18 ZB changed the theta binning to make the argument type correct
 import lasspia as La
 import math
 
-class cmassS(La.configuration):
+class DR12mock(La.configuration):
 
     def dataDir(self):
         """Directory of catalog files."""
@@ -11,10 +12,10 @@ class cmassS(La.configuration):
         return self.dataDir()
 
     def inputFilesRandom(self):
-        return [self.dataDir() + "randoms_DR9_CMASS_South.fits"]
+        return [self.dataDir() + "DR12_mock_modified.fits"]
 
     def inputFilesObserved(self):
-        return [self.dataDir() + "galaxies_DR9_CMASS_South.fits"]
+        return [self.dataDir() + "DR12_mock_modified.fits"]
 
     def catalogRandom(self):
         return La.wrapRandomSDSS(self.inputFilesRandom(), shiftRA=True)
@@ -22,21 +23,18 @@ class cmassS(La.configuration):
     def catalogObserved(self):
         return La.wrapObservedSDSS(self.inputFilesObserved(), shiftRA=True)
 
-    def binningZ(self): return {"bins":900, "range":(0.43,0.7)}
-    def binningRA(self): return {"bins": 2200, "range":(-50,50)}
-    def binningDec(self): return {"bins":800, "range":(-10,20)}
-    def binningTheta(self): return {"bins":3142/2, "range":(0,math.pi/2)}
+    def binningZ(self): return {"bins":1311, "range":(0.43,1)}
+    def binningRA(self): return {"bins":1864 , "range":(125, 245)}
+    def binningDec(self): return {"bins":1315, "range":(-10,25)}
+    def binningTheta(self): return {"bins":4160, "range":(0,91.7)}
 
     def chunkSize(self): return 2000
 
+    def maxDeltaRA(self): return None
+    def maxDeltaDec(self): return None
+    def maxDeltaZ(self): return None
 
-    '''Parameters for avoiding unnecessary combinatorial calculations at large s.
-    Galaxies farther apart than these parameters may not be included in result.'''
-
-    def maxDeltaRA(self): return 25
-    def maxDeltaDec(self): return 25
-    def maxDeltaZ(self): return 0.1002
-
+    def binningS(self): return {"bins": 100, "range": (0, 200)}
 
     '''Configuration affecting only the "integration" routine.'''
 
@@ -52,4 +50,3 @@ class cmassS(La.configuration):
         '''Speed of light in km/s'''
         return 299792
 
-    def binningS(self): return {"bins":1500, "range":(0,6000)}
