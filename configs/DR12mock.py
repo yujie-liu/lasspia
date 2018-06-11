@@ -18,15 +18,15 @@ class DR12mock(La.configuration):
         return [self.dataDir() + "DR12_mock_modified.fits"]
 
     def catalogRandom(self):
-        return La.wrapRandomSDSS(self.inputFilesRandom(), shiftRA=True)
+        return La.wrapRandomSDSS(self.inputFilesRandom())
 
     def catalogObserved(self):
-        return La.wrapObservedSDSS(self.inputFilesObserved(), shiftRA=True)
+        return La.wrapObservedSDSS(self.inputFilesObserved())
 
     def binningZ(self): return {"bins":1311, "range":(0.43,1)}
     def binningRA(self): return {"bins":1864 , "range":(125, 245)}
     def binningDec(self): return {"bins":1315, "range":(-10,25)}
-    def binningTheta(self): return {"bins":4160, "range":(0,91.7)}
+    def binningTheta(self): return {"bins":4160, "range":(0,1.6)}
 
     def chunkSize(self): return 2000
 
