@@ -45,38 +45,63 @@ def get_tpcf(fits_file, config):
         the tpcf of s and mu as a 2-d array
     '''
     hdul = fits.open(fits_file)
-    centerS = hdul[2].data['bincenter']
+    print(hdul[5].columns.info())
+    # centerS = hdul[1].data['bincenter']
     # normalization factors from integration.py
     nRR, nDR, nDD = (lambda h:
                      (h['normrr'],
                       h['normdr'],
                       h['normdd']))(fits.getheader(fits_file, 'TPCF'))
-    sigma_vals = hdul[3].data['binCenter']
-    print(hdul[2].data['binCenter'])
-    pi_vals = hdul[4].data['binCenter']
-    sigma_indices = hdul[5].data['iSigma']
-    pi_indices = hdul[5].data['iPi']
-    s_vals = (np.square(sigma_vals) + np.square(pi_vals)) ** .5
-    mu_vals = pi_vals / s_vals
-    # test1 = [sigma_vals[i] for i in sigma_indices]
-    # test2 = [pi_vals[i] for i in pi_indices]
-    # test_s = (np.square(test1) + np.square(test2)) ** .5
-    # test_mu = test2/test_s
-    # s_index = (test_s/2)
-    # mu_index = test_mu * 500/2 + 249
+    sigma_vals = hdul[2].data['binCenter']
+    pi_vals = hdul[3].data['binCenter']
+    s_vec = hdul[1].data['binCenter']
     bin_theta, range_theta = config.binningTheta()['bins'], config.binningTheta()['range']
     bin_theta = int(bin_theta)
     bin_s, range_s = config.binningS()['bins'], config.binningS()['range']
     bin_s = int(bin_s)
-    s_vec = np.arange(1, int(range_s[1]), int(range_s[1] / bin_s))
-    tpcf = np.empty((bin_s, bin_theta))
+    tpcf = np.zeros((bin_s, bin_theta))
+    repeat = 0
+    repeat_arr = []
+
+    # put tpcf values into (s, mu) grid
+    # need vectorization for efficiency
     for tuple in hdul[5].data:
         isigma, ipi, rr, dr, dd, dde2 = tuple
         s = (sigma_vals[isigma] ** 2 + pi_vals[ipi] ** 2) ** .5
         mu = pi_vals[ipi] / s
-        i_s = min(int(s / (range_s[1] / bin_s)), int(range_s[1] / 2 - 1))
-        i_mu = min(int((mu + 1) * bin_theta / 2), bin_theta - 1)
-        tpcf[i_s, i_mu] = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
+        i_s = int(s / (range_s[1] / bin_s))
+        i_mu = int((mu + 1) * bin_theta / 2)
+        val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
+        val = val * s * s
+        if s <= int(range_s[1]) and i_mu <= bin_theta - 1:
+            # record number of overwritten entries
+            if tpcf[i_s, i_mu] != 0:
+                repeat = repeat + 1
+                repeat_arr.append(abs(val - tpcf[i_s, i_mu]))
+            tpcf[i_s, i_mu] = val
+
+    # interpolation for tpcf(s, mu)
+    tpcf1 = np.copy(tpcf)
+    for i in range(1, bin_s):
+        temp = tpcf[i, :]
+        zeros = np.nonzero(temp == 0)[0]
+        nonzeros = np.nonzero(temp != 0)[0]
+        nonzero_vals = temp[nonzeros]
+        if len(nonzeros) >= 10:
+            temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
+            tpcf1[i, :] = temp
+
+    tpcf2 = np.copy(tpcf)
+    for i in range(1, bin_theta):
+        temp = tpcf[:, i]
+        zeros = np.nonzero(temp == 0)[0]
+        nonzeros = np.nonzero(temp != 0)[0]
+        nonzero_vals = temp[nonzeros]
+        if len(nonzeros) >= 10:
+            temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
+            tpcf2[:, i] = temp
+    tpcf = .5 * (tpcf1 + tpcf2)
+    tpcf[np.where(tpcf1 * tpcf2 == 0)] = 0  # get rid of entries where tpcf1 or tpcf2 are zero
     return s_vec, tpcf
 
 
@@ -94,12 +119,14 @@ def legendre_coef(tpcf, l, config):
         The .fits file has columns (s, tpcf0, etpcf0, tpcf2, etpcf2, ...)
     """
     if l % 2 == 1:
-        raise ValueError("The order of Legendre polynomials to be even")
+        raise ValueError("\'l\' has to be even")
     delta_mu = 2 / config.binningTheta()['bins']
     temp = np.copy(tpcf)
+    nonzeros = [np.count_nonzero(e) for e in temp]
+    nonzeros[nonzeros == 0] = 1
     mu_vec = np.linspace(-1, 1, int(config.binningTheta()['bins']))[:, None]  # the vector of mu values
     p = legendre(l)  # Legendre polynomial at order l
-    mu_vec = np.array([p(mu) for mu in mu_vec])  # P-_l(mu)
+    mu_vec = np.array([p(mu) for mu in mu_vec])  # P_l(mu)
     temp = temp * mu_vec.transpose() * delta_mu  # P_l(mu) * tpcf(s, mu) * delta_mu
     temp = temp * (2 * l + 1) / 2
     return temp.sum(axis=1)
