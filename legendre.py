@@ -73,6 +73,7 @@ def get_tpcf(fits_file, config):
         i_mu = int((mu + 1) * bin_theta / 2)
         val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
         val = val * s * s
+        val = 0.001
         if s <= int(range_s[1]) and i_mu <= bin_theta - 1:
             # record number of overwritten entries
             if tpcf[i_s, i_mu] != 0:
