@@ -3,6 +3,8 @@ import sys
 import os.path as osp
 from astropy.io import fits
 from scipy.special import legendre
+import matplotlib.pyplot as plt
+from matplotlib import rc
 import legendre_util as util
 
 
@@ -45,19 +47,24 @@ def get_tpcf_sigma_pi(fits_file, config):
     """
     hdul = fits.open(fits_file)
     print(hdul.info())
+    print(hdul[5].data)
     # normalization factors from integration.py
     nRR, nDR, nDD = (lambda h:
                      (h['normrr'],
                       h['normdr'],
-                      h['normdd']))(fits.getheader(fits_file, 'TPCF'))
-    sigma_vals = hdul[2].data['binCenter']
-    pi_vals = hdul[3].data['binCenter']
-    s_vec = hdul[1].data['binCenter']
+                      h['normdd']))(fits.getheader(fits_file, 'TPCF2D'))
+    sigma_vals = hdul[3].data['binCenter']
+    pi_vals = hdul[4].data['binCenter']
+    #s_vec = hdul[2].data['binCenter']
     bin_theta, range_theta = config.binningTheta()['bins'], config.binningTheta()['range']
     bin_theta = int(bin_theta)
     bin_s, range_s = config.binningS()['bins'], config.binningS()['range']
     bin_s = int(bin_s)
     tpcf = np.zeros((len(pi_vals), len(sigma_vals)))
+    dd_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
+    dr_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
+    rr_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
+    print(len(pi_vals), len(sigma_vals))
     bin_space = pi_vals[1] - pi_vals[0]
     s_bins = int(len(pi_vals) / 2)
     # put tpcf values into (s, mu) grid
@@ -65,23 +72,29 @@ def get_tpcf_sigma_pi(fits_file, config):
     for tuple in hdul[5].data:
 
         isigma, ipi, rr, dr, dd, dde2 = tuple
+        dd = dd / 2
         sigma = isigma * bin_space - s_bins * bin_space
         pi = ipi * bin_space - s_bins * bin_space
         s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
         mu = pi / s
         val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
-        val = s ** 2 * val
-        if isigma > 5 and isigma < bin_s * 2 - 5:
+        # val = s ** 2 * val
+        if (5 < isigma < bin_s * 2 - 5) and (0 <= ipi < bin_s * 2):
             tpcf[isigma, ipi] = val
+            dd_matrix[isigma, ipi] = dd/nDD
+            dr_matrix[isigma, ipi] = dr / nDR
+            rr_matrix[isigma, ipi] = rr / nRR
     leng = tpcf.shape
     tpcf = tpcf[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
     tpcf = np.fliplr(tpcf)
     tpcf = np.lib.pad(tpcf, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
     print(tpcf.min(), tpcf.max(), tpcf.mean())
-    return bin_space, bin_s, bin_theta, tpcf
+    print(len(tpcf))
+    print(((tpcf > 1) & (tpcf < 1.2)).sum())
+    return bin_space, bin_s, bin_theta, tpcf, dd_matrix, dr_matrix, rr_matrix
 
 
-def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf):
+def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1):
     """
     Convert tpcf(sigma, pi) to tpcf(s, mu)
     :param bin_space:
@@ -97,16 +110,15 @@ def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf):
     for (isigma, ipi), val in np.ndenumerate(tpcf):
         sigma = isigma * bin_space - s_bins * bin_space
         pi = ipi * bin_space - s_bins * bin_space
-        s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
+        s = max(1e-6, np.sqrt((ratio * sigma) ** 2 + pi ** 2))
+        #val = val * s ** 2
         mu = pi / s
         i_s = int(s / bin_space)
         i_mu = int((mu + 1) * mu_bins / 2)
         if 5 < i_s < s_bins - 5 and i_mu < mu_bins:
-            # val = val * s **2
             tpcf_s_mu[i_s, i_mu] = val
     tpcf_s_mu = interpolate(tpcf_s_mu)
     print(tpcf_s_mu.max(), tpcf_s_mu.min(), tpcf_s_mu.mean())
-    print(s_vec.min(), s_vec.max(), s_vec.mean())
     return s_vec, tpcf_s_mu
 
 
@@ -168,47 +180,49 @@ def get_tpcf(fits_file, config):
             temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
             tpcf1[i, :] = temp
 
-    tpcf2 = np.copy(tpcf)
-    for i in range(1, bin_theta):
-        temp = tpcf[:, i]
-        zeros = np.nonzero(temp == 0)[0]
-        nonzeros = np.nonzero(temp != 0)[0]
-        nonzero_vals = temp[nonzeros]
-        if len(nonzeros) >= 10:
-            temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
-            tpcf2[:, i] = temp
+    tpcf2 = interpolate(tpcf)
     tpcf = .5 * (tpcf1 + tpcf2)
-    # tpcf[tpcf > 2] = 2
-    print(tpcf.min(), tpcf.max(), tpcf.mean())
     tpcf[np.where(tpcf1 * tpcf2 == 0)] = 0  # get rid of entries where tpcf1 or tpcf2 are zero
     return s_vec, tpcf
 
 
-def interpolate(tpcf):
+def interpolate(tpcf, axis=0):
     """
     Using interpolation to fill in the empty entries in the tpcf matrix
     :param tpcf: ndarray
     :return: filled tpcf matrix
     """
     tpcf2 = np.copy(tpcf)
-    for i in range(1, tpcf.shape[1]):
-        temp = tpcf[:, i]
-        zeros = np.nonzero(temp == 0)[0]
-        nonzeros = np.nonzero(temp != 0)[0]
-        nonzero_vals = temp[nonzeros]
-        if len(nonzeros) >= 10:
-            temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
-            tpcf2[:, i] = temp
+    if axis == 0:
+        for i in range(1, tpcf.shape[0]):
+            temp = tpcf[i, :]
+            zeros = np.nonzero(temp == 0)[0]
+            nonzeros = np.nonzero(temp != 0)[0]
+            nonzero_vals = temp[nonzeros]
+            if len(nonzeros) >= 10:
+                temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
+                tpcf2[i, :] = temp
+    elif axis == 1:
+        for i in range(1, tpcf.shape[1]):
+            temp = tpcf[:, i]
+            zeros = np.nonzero(temp == 0)[0]
+            nonzeros = np.nonzero(temp != 0)[0]
+            nonzero_vals = temp[nonzeros]
+            if len(nonzeros) >= 10:
+                temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
+                tpcf2[:, i] = temp
     return tpcf2
 
 
-def legendre_coef(tpcf, l, config):
+def legendre_coef(tpcf, l, config=None, mu_bins=0):
     """
     Calculate the coefficient of tpcf_l(s) in Legendre expansion for all s
     Inputs:
     + tpcf: ndarray
         the tpcf as a matrix dimensioned by mu and s
     + l: the order of desired Legendre polynomial
+    + config: Configuration object
+    + mu_bins: if no configuration specified, the number of mu bins
     Outputs:
     + coef:
         Return the coefficient of tpcf_l(s) as an array indexed by s values
@@ -217,16 +231,49 @@ def legendre_coef(tpcf, l, config):
     """
     if l % 2 == 1:
         raise ValueError("\'l\' has to be even")
-    delta_mu = 2 / config.binningTheta()['bins']
+    if config:
+        mu_bins = int(config.binningTheta()['bins'])
+    elif mu_bins == 0:
+        raise ValueError('Either \'config\' or \'mu_bins\' has to be specified')
+    delta_mu = 2 / mu_bins
     temp = np.copy(tpcf)
     nonzeros = [np.count_nonzero(e) for e in temp]
     nonzeros[nonzeros == 0] = 1
-    mu_vec = np.linspace(-1, 1, int(config.binningTheta()['bins']))[:, None]  # the vector of mu values
+    mu_vec = np.linspace(-1, 1, mu_bins)[:, None]  # the vector of mu values
     p = legendre(l)  # Legendre polynomial at order l
     mu_vec = np.array([p(mu) for mu in mu_vec])  # P_l(mu)
     temp = temp * mu_vec.transpose() * delta_mu  # P_l(mu) * tpcf(s, mu) * delta_mu
     temp = temp * (2 * l + 1) / 2
     return temp.sum(axis=1)
+
+
+def legendre_coef_u(tpcf, l, config=None, mu_bins=0):
+    '''
+    Calculate the Legendre expansion results for uncertainty
+    :param tpcf:
+    :param l: the order of desired Legendre polynomial
+    :param config: Configuration object
+    :param mu_bins: if not configuration specified, the number of mu bins
+    :return:
+        Return the coefficient of tpcf_l(s) as an array indexed by s values
+        Write results to *_legendre.fits file
+    '''
+    if l % 2 == 1:
+        raise ValueError("\'l\' has to be even")
+    if config:
+        mu_bins = int(config.binningTheta()['bins'])
+    elif mu_bins == 0:
+        raise ValueError('Either \'config\' or \'mu_bins\' has to be specified')
+    delta_mu = 2 / mu_bins
+    temp = np.copy(tpcf)
+    mu_vec = np.linspace(-1, 1, mu_bins)[:, None]  # the vector of mu values
+    p = legendre(l)  # Legendre polynomial at order l
+    mu_vec = np.array([p(mu) for mu in mu_vec])  # P_l(mu)
+    temp = temp * mu_vec.transpose() * delta_mu  # P_l(mu) * tpcf(s, mu) * delta_mu
+    temp = temp ** 2
+    val = np.sqrt(temp.sum(axis=1))
+    val = val * (2 * l + 1) / 2
+    return val
 
 
 def legendre_to_file():
@@ -239,29 +286,47 @@ def legendre_to_file():
     args = parser.parse_args()
     config = getInstance(args.configFile)
     fits_file = osp.join(osp.abspath('../data'), args.fitsFile[0])
-    bin_space, bin_s, bin_theta, tpcf_pi_sigma = get_tpcf_sigma_pi(fits_file, config)
+    rc('font', family='serif')
+    rc('font', size=16)
+    plt.tight_layout()
+
+    bin_space, bin_s, bin_theta, tpcf_pi_sigma, dd, dr, rr = get_tpcf_sigma_pi(fits_file, config)
+    s_vec, dd = tpcf_to_s_mu(bin_space, bin_s, bin_theta, rr)
     s_vec, tpcf = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma)
     tpcf_pi_sigma = np.transpose(tpcf_pi_sigma)
+    # levels = [-.1, -.05,  0, .02, .03, .04, .05, .06, .1, .12, .15, .17,  .2, .3, .6, .9, 1]
+    # levels = np.arange(-.1, .5, 0.01)
+    # tpcf_pi_sigma = np.arcsinh(tpcf_pi_sigma)
+    extent = [-300, 300, -300, 300]
 
-    util.plot_contourf(tpcf_pi_sigma, 1, 1.2, 10, [-300, 300, -300, 300])
+    plt.ylabel(r"$\pi $", fontsize=16)
+    plt.xlabel(r"$\sigma $", fontsize=16)
 
-    # plt.figure()
-    # plt.contourf(tpcf, 50, extent=[-1, 1, 0, 300])
-    # plt.colorbar()
-    # plt.ylabel(r"$s $", fontsize=16)
-    # plt.xlabel(r"$\mu $", fontsize=16)
-    # plt.tight_layout()
-    # plt.show()
+    plt.imshow(tpcf_pi_sigma, origin='lower', extent=extent)
+    plt.title(r'TPCF with')
+    plt.colorbar()
+    plt.tight_layout()
+    plt.show()
 
     hdu = fits.BinTableHDU.from_columns([
         fits.Column(name='s', array=s_vec, format='I'),
-        fits.Column(name='tpcf0', array=legendre_coef(tpcf, 0, config), format='D'),
-        fits.Column(name='tpcf2', array=legendre_coef(tpcf, 2, config), format='D'),
-        fits.Column(name='tpcf4', array=legendre_coef(tpcf, 4, config), format='D'),
-        fits.Column(name='tpcf6', array=legendre_coef(tpcf, 6, config), format='D')
+        fits.Column(name='tpcf0', array=legendre_coef(tpcf, 0, config=config), format='D'),
+        fits.Column(name='tpcf2', array=legendre_coef(tpcf, 2, config=config), format='D'),
+        fits.Column(name='tpcf4', array=legendre_coef(tpcf, 4, config=config), format='D'),
+        fits.Column(name='tpcf6', array=legendre_coef(tpcf, 6, config=config), format='D')
     ],
         name='legendre')
     hdu.writeto(config.__class__.__name__ + '_legendre.fits')
+
+    # hdu = fits.BinTableHDU.from_columns([
+    #     fits.Column(name='s', array=s_vec, format='I'),
+    #     fits.Column(name='tpcf0', array=legendre_coef(dd, 0, config=config), format='D'),
+    #     fits.Column(name='tpcf2', array=legendre_coef(dd, 2, config=config), format='D'),
+    #     fits.Column(name='tpcf4', array=legendre_coef(dd, 4, config=config), format='D'),
+    #     fits.Column(name='tpcf6', array=legendre_coef(dd, 6, config=config), format='D')
+    # ],
+    #     name='legendre')
+    # hdu.writeto(config.__class__.__name__ + '_legendre.fits')
 
 
 if __name__ == '__main__':

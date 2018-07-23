@@ -90,7 +90,6 @@ Xi = np.zeros((32,32))
 for tuple in data:
     pi, sigma, xi, dxi =tuple[0:4]
     s = np.sqrt(pi ** 2 + sigma ** 2)
-    xi =xi*s **2
     mu=pi/s
     s_index=int(s*32/280)
     mu_index=int((mu+1)*32/2)
@@ -107,12 +106,18 @@ for tuple in data:
 #         Xi1[i, :] = temp
 # Xi = Xi1
 
+a = np.arange(0, 2.5, 0.5)
+b = np.arange(10).reshape(-1, 5)
+plt.plot(a, b[0])
+plt.show()
+
 hdu = fits.BinTableHDU.from_columns([
     fits.Column(name='s', array=s_vec, format='I'),
-    fits.Column(name='tpcf0', array=legendre_coef(Xi, 0), format='D'),
-    fits.Column(name='tpcf2', array=legendre_coef(Xi, 2), format='D'),
-    fits.Column(name='tpcf4', array=legendre_coef(Xi, 4), format='D'),
-    fits.Column(name='tpcf6', array=legendre_coef(Xi, 6), format='D')
+    fits.Column(name='tpcf0', array=legendre_coef(Xi, 0)*s_vec**2, format='D'),
+    fits.Column(name='tpcf2', array=legendre_coef(Xi, 2)*s_vec**2, format='D'),
+    fits.Column(name='tpcf4', array=legendre_coef(Xi, 4)*s_vec**2, format='D'),
+    fits.Column(name='tpcf6', array=legendre_coef(Xi, 6)*s_vec**2, format='D')
 ],
     name='legendre')
 hdu.writeto('cute_legendre.fits')
+
