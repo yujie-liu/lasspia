@@ -53,8 +53,8 @@ def get_tpcf_sigma_pi(fits_file, config):
                      (h['normrr'],
                       h['normdr'],
                       h['normdd']))(fits.getheader(fits_file, 'TPCF2D'))
-    sigma_vals = hdul[3].data['binCenter']
-    pi_vals = hdul[4].data['binCenter']
+    sigma_vals = hdul[2].data['binCenter']
+    pi_vals = hdul[3].data['binCenter']
     #s_vec = hdul[2].data['binCenter']
     bin_theta, range_theta = config.binningTheta()['bins'], config.binningTheta()['range']
     bin_theta = int(bin_theta)
@@ -78,9 +78,10 @@ def get_tpcf_sigma_pi(fits_file, config):
         s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
         mu = pi / s
         val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
-        # val = s ** 2 * val
+        val = s ** 2 * val
         if (5 < isigma < bin_s * 2 - 5) and (0 <= ipi < bin_s * 2):
             tpcf[isigma, ipi] = val
+        if 0 < s < 200:
             dd_matrix[isigma, ipi] = dd/nDD
             dr_matrix[isigma, ipi] = dr / nDR
             rr_matrix[isigma, ipi] = rr / nRR
@@ -91,6 +92,16 @@ def get_tpcf_sigma_pi(fits_file, config):
     print(tpcf.min(), tpcf.max(), tpcf.mean())
     print(len(tpcf))
     print(((tpcf > 1) & (tpcf < 1.2)).sum())
+
+    dd_matrix = dd_matrix / np.sum(dd_matrix)
+    dr_matrix = 2* dr_matrix / np.sum(dr_matrix)
+    rr_matrix = 2* rr_matrix / np.sum(rr_matrix)
+    rr_matrix[np.isnan(rr_matrix)] = 0
+    # tpcf = (dd_matrix - 2 * dr_matrix + rr_matrix)/rr_matrix
+    # tpcf = tpcf * (s ** 2)
+    # tpcf = tpcf[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
+    # tpcf = np.fliplr(tpcf)
+    # tpcf = np.lib.pad(tpcf, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
     return bin_space, bin_s, bin_theta, tpcf, dd_matrix, dr_matrix, rr_matrix
 
 
@@ -291,7 +302,7 @@ def legendre_to_file():
     plt.tight_layout()
 
     bin_space, bin_s, bin_theta, tpcf_pi_sigma, dd, dr, rr = get_tpcf_sigma_pi(fits_file, config)
-    s_vec, dd = tpcf_to_s_mu(bin_space, bin_s, bin_theta, rr)
+    s_vec, dd = tpcf_to_s_mu(bin_space, bin_s, bin_theta, dd)
     s_vec, tpcf = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma)
     tpcf_pi_sigma = np.transpose(tpcf_pi_sigma)
     # levels = [-.1, -.05,  0, .02, .03, .04, .05, .06, .1, .12, .15, .17,  .2, .3, .6, .9, 1]
@@ -302,11 +313,11 @@ def legendre_to_file():
     plt.ylabel(r"$\pi $", fontsize=16)
     plt.xlabel(r"$\sigma $", fontsize=16)
 
-    plt.imshow(tpcf_pi_sigma, origin='lower', extent=extent)
-    plt.title(r'TPCF with')
-    plt.colorbar()
-    plt.tight_layout()
-    plt.show()
+    # plt.imshow(tpcf_pi_sigma, origin='lower', extent=extent, vmax=1.2)
+    # plt.title(r'TPCF with')
+    # plt.colorbar()
+    # plt.tight_layout()
+    # plt.show()
 
     hdu = fits.BinTableHDU.from_columns([
         fits.Column(name='s', array=s_vec, format='I'),

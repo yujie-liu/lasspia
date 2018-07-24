@@ -1,7 +1,6 @@
 from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib import rc
-import os.path as osp
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -15,7 +14,6 @@ if __name__ == '__main__':
     coef = hdul[1].data
     rc('font', family='serif')
     rc('font', size=16)
-    # plt.ylim([-0.5, 1.5])
 
     plt.figure(figsize=[7, 6])
 
@@ -23,12 +21,11 @@ if __name__ == '__main__':
     plt.plot(coef['s'], coef['tpcf4'])
     plt.plot(coef['s'], coef['tpcf2'])
     plt.plot(coef['s'], coef['tpcf0'], color="r")
-    # plt.legend(['l = 0'], loc='upper left')
     plt.legend(['l = 6', 'l = 4', 'l = 2', 'l = 0'], loc='upper left')
-
     plt.xlabel('s')
-    plt.ylabel(r'$\widetilde{\xi}(s)$')
-    # plt.title(r'ξl˜(s)=2l+12∑jξ(s,μj)Pl(μj)Δμj')
-    #plt.title(r'With Gaussian noise of σ=1')
+    plt.ylabel(r'$\widetilde{\xi}(s) s^2$')
+    plt.title(r'Legendre expansion of DR12')
+
     plt.tight_layout()
+    plt.savefig('/home/yujie/Desktop/Figures/Figure_0723_dr12_s2.png')
     plt.show()
