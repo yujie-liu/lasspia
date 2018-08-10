@@ -76,3 +76,31 @@ def plot_contourf(tpcf, vmin, vmax, levels, extent):
     plt.colorbar()
     plt.tight_layout()
     plt.show()
+
+
+def interpolate(tpcf, axis=0, threshold=10):
+    """
+    Using interpolation to fill in the empty entries in the tpcf matrix
+    :param tpcf: ndarray
+    :return: filled tpcf matrix
+    """
+    tpcf2 = np.copy(tpcf)
+    if axis == 0:
+        for i in range(1, tpcf.shape[0]):
+            temp = tpcf[i, :]
+            zeros = np.nonzero(temp == 0)[0]
+            nonzeros = np.nonzero(temp != 0)[0]
+            nonzero_vals = temp[nonzeros]
+            if len(nonzeros) >= threshold:
+                temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
+                tpcf2[i, :] = temp
+    elif axis == 1:
+        for i in range(1, tpcf.shape[1]):
+            temp = tpcf[:, i]
+            zeros = np.nonzero(temp == 0)[0]
+            nonzeros = np.nonzero(temp != 0)[0]
+            nonzero_vals = temp[nonzeros]
+            if len(nonzeros) >= threshold:
+                temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
+                tpcf2[:, i] = temp
+    return tpcf2

@@ -16,7 +16,6 @@ if __name__ == '__main__':
     rc('font', size=16)
 
     plt.figure(figsize=[7, 6])
-
     plt.plot(coef['s'], coef['tpcf6'])
     plt.plot(coef['s'], coef['tpcf4'])
     plt.plot(coef['s'], coef['tpcf2'])
@@ -24,8 +23,7 @@ if __name__ == '__main__':
     plt.legend(['l = 6', 'l = 4', 'l = 2', 'l = 0'], loc='upper left')
     plt.xlabel('s')
     plt.ylabel(r'$\widetilde{\xi}(s) s^2$')
-    plt.title(r'Legendre expansion of DR12')
+    plt.title(r'Legendre Expansion of mock-012')
 
     plt.tight_layout()
-    plt.savefig('/home/yujie/Desktop/Figures/Figure_0723_dr12_s2.png')
     plt.show()

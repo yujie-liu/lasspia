@@ -5,7 +5,7 @@ from astropy.io import fits
 from scipy.special import legendre
 import matplotlib.pyplot as plt
 from matplotlib import rc
-import legendre_util as util
+import legendre_util
 
 
 # From lasspia.py
@@ -53,14 +53,18 @@ def get_tpcf_sigma_pi(fits_file, config):
                      (h['normrr'],
                       h['normdr'],
                       h['normdd']))(fits.getheader(fits_file, 'TPCF2D'))
-    sigma_vals = hdul[2].data['binCenter']
-    pi_vals = hdul[3].data['binCenter']
-    #s_vec = hdul[2].data['binCenter']
+    try:
+        sigma_vals = hdul[3].data['binCenter']
+        pi_vals = hdul[4].data['binCenter']
+    except:
+        sigma_vals = hdul[2].data['binCenter']
+        pi_vals = hdul[3].data['binCenter']
     bin_theta, range_theta = config.binningTheta()['bins'], config.binningTheta()['range']
     bin_theta = int(bin_theta)
     bin_s, range_s = config.binningS()['bins'], config.binningS()['range']
     bin_s = int(bin_s)
     tpcf = np.zeros((len(pi_vals), len(sigma_vals)))
+    tpcf_s2 = np.zeros((len(pi_vals), len(sigma_vals)))
     dd_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
     dr_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
     rr_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
@@ -78,40 +82,102 @@ def get_tpcf_sigma_pi(fits_file, config):
         s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
         mu = pi / s
         val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
-        val = s ** 2 * val
-        if (5 < isigma < bin_s * 2 - 5) and (0 <= ipi < bin_s * 2):
+        if (0 < isigma < bin_s * 2 ) and (0 <= ipi < bin_s * 2):
             tpcf[isigma, ipi] = val
-        if 0 < s < 200:
-            dd_matrix[isigma, ipi] = dd/nDD
+            dd_matrix[isigma, ipi] = dd / nDD
             dr_matrix[isigma, ipi] = dr / nDR
             rr_matrix[isigma, ipi] = rr / nRR
+
+
     leng = tpcf.shape
-    tpcf = tpcf[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
-    tpcf = np.fliplr(tpcf)
+
+    tpcf = tpcf[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
     tpcf = np.lib.pad(tpcf, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-    print(tpcf.min(), tpcf.max(), tpcf.mean())
-    print(len(tpcf))
-    print(((tpcf > 1) & (tpcf < 1.2)).sum())
+    tpcf = tpcf.T
 
-    dd_matrix = dd_matrix / np.sum(dd_matrix)
-    dr_matrix = 2* dr_matrix / np.sum(dr_matrix)
-    rr_matrix = 2* rr_matrix / np.sum(rr_matrix)
-    rr_matrix[np.isnan(rr_matrix)] = 0
-    # tpcf = (dd_matrix - 2 * dr_matrix + rr_matrix)/rr_matrix
-    # tpcf = tpcf * (s ** 2)
-    # tpcf = tpcf[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
-    # tpcf = np.fliplr(tpcf)
-    # tpcf = np.lib.pad(tpcf, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-    return bin_space, bin_s, bin_theta, tpcf, dd_matrix, dr_matrix, rr_matrix
+    plt.title('TPCF')
+    plt.imshow(tpcf.T, extent=[-200, 200, -200, 200], vmax=-.45, vmin=-.55)
+    plt.colorbar()
+    plt.show()
+
+    # dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
+    # dd_matrix = np.fliplr(dd_matrix)
+    # dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    # dr_matrix = dr_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
+    # dr_matrix = np.fliplr(dr_matrix)
+    # dr_matrix = np.lib.pad(dr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    # rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
+    # rr_matrix = np.fliplr(rr_matrix)
+    # rr_matrix = np.lib.pad(rr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+
+    dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
+    dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    dr_matrix = dr_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
+    dr_matrix = np.lib.pad(dr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
+    rr_matrix = np.lib.pad(rr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+
+    # dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
+    # dd_matrix = np.fliplr(dd_matrix)
+    # dd_matrix = np.flipud(dd_matrix)
+    # dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    # dr_matrix = dr_matrix[int(leng[0] / 2):leng[0], :]
+    # dr_matrix2 = np.flipud(dr_matrix)
+    # dr_matrix = np.concatenate((dr_matrix, dr_matrix2), axis=0)
+    # rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], :]
+    # rr_matrix2 = np.flipud(rr_matrix)
+    # rr_matrix = np.concatenate((rr_matrix, rr_matrix2), axis=0)
+    dd_matrix = dd_matrix * 2
+
+    for i_s in range(bin_s * 2):
+        for i_p in range(bin_s * 2):
+            sigma = i_s * bin_space - s_bins * bin_space
+            pi = i_p * bin_space - s_bins * bin_space
+            s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
+            if s > 300:
+                dd_matrix[i_s, i_p] = 0
+                dr_matrix[i_s, i_p] = 0
+                rr_matrix[i_s, i_p] = 0
+    # dd_matrix = 1e05 * dd_matrix / np.sum(dd_matrix)
+    # dr_matrix = 1e05 *dr_matrix / np.sum(dr_matrix)
+    # rr_matrix = 1e05 *rr_matrix / np.sum(rr_matrix)
+    # rr_matrix[np.isnan(rr_matrix)] = 0
+
+    print(dd_matrix.min(), dd_matrix.max(), dd_matrix.mean(), np.median(dd_matrix))
+    print(dr_matrix.min(), dr_matrix.max(), dr_matrix.mean(), np.median(dr_matrix))
+    print(rr_matrix.min(), rr_matrix.max(), rr_matrix.mean(), np.median(rr_matrix))
+    tpcf1 = (dd_matrix - 2* dr_matrix + rr_matrix)/rr_matrix
+    print(tpcf1.min(), tpcf1.max(), tpcf1.mean(), np.median(tpcf1))
+    plt.imshow(tpcf1)
+    plt.colorbar()
+    plt.show()
+    tpcf1[np.isnan(tpcf1)] = 0
+    for i_s in range(bin_s * 2):
+        for i_p in range(bin_s * 2):
+            sigma = i_s * bin_space - s_bins * bin_space
+            pi = i_p * bin_space - s_bins * bin_space
+            s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
+            if s < 300:
+                tpcf_s2[i_s, i_p] = s ** 2 * tpcf1[i_s, i_p]
+
+    # # tpcf = tpcf * (s ** 2)
+    # # tpcf = tpcf[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
+    # # tpcf = np.fliplr(tpcf)
+    # # tpcf = np.lib.pad(tpcf, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    # tpcf = tpcf[200:400, 200:400]
+    # tpcf = (dd_matrix - 2 * dr_matrix + rr_matrix) / rr_matrix
+
+    return bin_space, bin_s, bin_theta, tpcf1, tpcf_s2
 
 
-def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1):
+def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0, s_sqr=False):
     """
     Convert tpcf(sigma, pi) to tpcf(s, mu)
     :param bin_space:
     :param s_bins: number of s bins
     :param mu_bins: number of mu bins
     :param tpcf: tpcf(sigma, pi) matrix
+    :param s_sqr: whether to multiply by s^2
     :return:
         s_vec: s values
         tpcf_s_mu: tpcf(s, mu)
@@ -122,14 +188,15 @@ def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1):
         sigma = isigma * bin_space - s_bins * bin_space
         pi = ipi * bin_space - s_bins * bin_space
         s = max(1e-6, np.sqrt((ratio * sigma) ** 2 + pi ** 2))
-        #val = val * s ** 2
+        if s_sqr:
+            val = val * s ** 2
         mu = pi / s
         i_s = int(s / bin_space)
         i_mu = int((mu + 1) * mu_bins / 2)
-        if 5 < i_s < s_bins - 5 and i_mu < mu_bins:
+        if 1 < i_s < s_bins - 1 and i_mu < mu_bins:
             tpcf_s_mu[i_s, i_mu] = val
-    tpcf_s_mu = interpolate(tpcf_s_mu)
-    print(tpcf_s_mu.max(), tpcf_s_mu.min(), tpcf_s_mu.mean())
+    tpcf_s_mu = legendre_util.interpolate(tpcf_s_mu)
+    print(tpcf_s_mu)
     return s_vec, tpcf_s_mu
 
 
@@ -197,32 +264,7 @@ def get_tpcf(fits_file, config):
     return s_vec, tpcf
 
 
-def interpolate(tpcf, axis=0):
-    """
-    Using interpolation to fill in the empty entries in the tpcf matrix
-    :param tpcf: ndarray
-    :return: filled tpcf matrix
-    """
-    tpcf2 = np.copy(tpcf)
-    if axis == 0:
-        for i in range(1, tpcf.shape[0]):
-            temp = tpcf[i, :]
-            zeros = np.nonzero(temp == 0)[0]
-            nonzeros = np.nonzero(temp != 0)[0]
-            nonzero_vals = temp[nonzeros]
-            if len(nonzeros) >= 10:
-                temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
-                tpcf2[i, :] = temp
-    elif axis == 1:
-        for i in range(1, tpcf.shape[1]):
-            temp = tpcf[:, i]
-            zeros = np.nonzero(temp == 0)[0]
-            nonzeros = np.nonzero(temp != 0)[0]
-            nonzero_vals = temp[nonzeros]
-            if len(nonzeros) >= 10:
-                temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
-                tpcf2[:, i] = temp
-    return tpcf2
+
 
 
 def legendre_coef(tpcf, l, config=None, mu_bins=0):
@@ -255,7 +297,8 @@ def legendre_coef(tpcf, l, config=None, mu_bins=0):
     mu_vec = np.array([p(mu) for mu in mu_vec])  # P_l(mu)
     temp = temp * mu_vec.transpose() * delta_mu  # P_l(mu) * tpcf(s, mu) * delta_mu
     temp = temp * (2 * l + 1) / 2
-    return temp.sum(axis=1)
+    val = temp.sum(axis=1)
+    return val
 
 
 def legendre_coef_u(tpcf, l, config=None, mu_bins=0):
@@ -301,19 +344,14 @@ def legendre_to_file():
     rc('font', size=16)
     plt.tight_layout()
 
-    bin_space, bin_s, bin_theta, tpcf_pi_sigma, dd, dr, rr = get_tpcf_sigma_pi(fits_file, config)
-    s_vec, dd = tpcf_to_s_mu(bin_space, bin_s, bin_theta, dd)
+    bin_space, bin_s, bin_theta, tpcf_pi_sigma, tpcf_pi_sigma_s2 = get_tpcf_sigma_pi(fits_file, config)
+    s_vec, tpcf_s2 = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma_s2)
     s_vec, tpcf = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma)
-    tpcf_pi_sigma = np.transpose(tpcf_pi_sigma)
-    # levels = [-.1, -.05,  0, .02, .03, .04, .05, .06, .1, .12, .15, .17,  .2, .3, .6, .9, 1]
-    # levels = np.arange(-.1, .5, 0.01)
-    # tpcf_pi_sigma = np.arcsinh(tpcf_pi_sigma)
-    extent = [-300, 300, -300, 300]
-
+    tpcf = tpcf_s2
     plt.ylabel(r"$\pi $", fontsize=16)
     plt.xlabel(r"$\sigma $", fontsize=16)
 
-    # plt.imshow(tpcf_pi_sigma, origin='lower', extent=extent, vmax=1.2)
+    # plt.imshow(tpcf_pi_sigma.T, origin='lower', extent=extent, vmax=1.2)
     # plt.title(r'TPCF with')
     # plt.colorbar()
     # plt.tight_layout()
