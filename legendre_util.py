@@ -82,6 +82,8 @@ def interpolate(tpcf, axis=0, threshold=10):
     """
     Using interpolation to fill in the empty entries in the tpcf matrix
     :param tpcf: ndarray
+    :param axis: the axis to interpolate along
+    :param threshold: for each array, do interpolation only if the number of non-zero entries is above threshold
     :return: filled tpcf matrix
     """
     tpcf2 = np.copy(tpcf)

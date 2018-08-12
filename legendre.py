@@ -46,8 +46,6 @@ def get_tpcf_sigma_pi(fits_file, config):
         tpcf: tpcf(sigma, pi) matrix
     """
     hdul = fits.open(fits_file)
-    print(hdul.info())
-    print(hdul[5].data)
     # normalization factors from integration.py
     nRR, nDR, nDD = (lambda h:
                      (h['normrr'],
@@ -68,7 +66,6 @@ def get_tpcf_sigma_pi(fits_file, config):
     dd_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
     dr_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
     rr_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
-    print(len(pi_vals), len(sigma_vals))
     bin_space = pi_vals[1] - pi_vals[0]
     s_bins = int(len(pi_vals) / 2)
     # put tpcf values into (s, mu) grid
@@ -82,12 +79,11 @@ def get_tpcf_sigma_pi(fits_file, config):
         s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
         mu = pi / s
         val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
-        if (0 < isigma < bin_s * 2 ) and (0 <= ipi < bin_s * 2):
+        if (0 < isigma < bin_s * 2) and (0 <= ipi < bin_s * 2):
             tpcf[isigma, ipi] = val
             dd_matrix[isigma, ipi] = dd / nDD
             dr_matrix[isigma, ipi] = dr / nDR
             rr_matrix[isigma, ipi] = rr / nRR
-
 
     leng = tpcf.shape
 
@@ -100,16 +96,6 @@ def get_tpcf_sigma_pi(fits_file, config):
     plt.colorbar()
     plt.show()
 
-    # dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
-    # dd_matrix = np.fliplr(dd_matrix)
-    # dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-    # dr_matrix = dr_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
-    # dr_matrix = np.fliplr(dr_matrix)
-    # dr_matrix = np.lib.pad(dr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-    # rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
-    # rr_matrix = np.fliplr(rr_matrix)
-    # rr_matrix = np.lib.pad(rr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-
     dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
     dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
     dr_matrix = dr_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
@@ -117,16 +103,6 @@ def get_tpcf_sigma_pi(fits_file, config):
     rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
     rr_matrix = np.lib.pad(rr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
 
-    # dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
-    # dd_matrix = np.fliplr(dd_matrix)
-    # dd_matrix = np.flipud(dd_matrix)
-    # dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-    # dr_matrix = dr_matrix[int(leng[0] / 2):leng[0], :]
-    # dr_matrix2 = np.flipud(dr_matrix)
-    # dr_matrix = np.concatenate((dr_matrix, dr_matrix2), axis=0)
-    # rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], :]
-    # rr_matrix2 = np.flipud(rr_matrix)
-    # rr_matrix = np.concatenate((rr_matrix, rr_matrix2), axis=0)
     dd_matrix = dd_matrix * 2
 
     for i_s in range(bin_s * 2):
@@ -138,16 +114,8 @@ def get_tpcf_sigma_pi(fits_file, config):
                 dd_matrix[i_s, i_p] = 0
                 dr_matrix[i_s, i_p] = 0
                 rr_matrix[i_s, i_p] = 0
-    # dd_matrix = 1e05 * dd_matrix / np.sum(dd_matrix)
-    # dr_matrix = 1e05 *dr_matrix / np.sum(dr_matrix)
-    # rr_matrix = 1e05 *rr_matrix / np.sum(rr_matrix)
-    # rr_matrix[np.isnan(rr_matrix)] = 0
 
-    print(dd_matrix.min(), dd_matrix.max(), dd_matrix.mean(), np.median(dd_matrix))
-    print(dr_matrix.min(), dr_matrix.max(), dr_matrix.mean(), np.median(dr_matrix))
-    print(rr_matrix.min(), rr_matrix.max(), rr_matrix.mean(), np.median(rr_matrix))
-    tpcf1 = (dd_matrix - 2* dr_matrix + rr_matrix)/rr_matrix
-    print(tpcf1.min(), tpcf1.max(), tpcf1.mean(), np.median(tpcf1))
+    tpcf1 = (dd_matrix - 2 * dr_matrix + rr_matrix) / rr_matrix
     plt.imshow(tpcf1)
     plt.colorbar()
     plt.show()
@@ -159,13 +127,6 @@ def get_tpcf_sigma_pi(fits_file, config):
             s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
             if s < 300:
                 tpcf_s2[i_s, i_p] = s ** 2 * tpcf1[i_s, i_p]
-
-    # # tpcf = tpcf * (s ** 2)
-    # # tpcf = tpcf[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
-    # # tpcf = np.fliplr(tpcf)
-    # # tpcf = np.lib.pad(tpcf, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-    # tpcf = tpcf[200:400, 200:400]
-    # tpcf = (dd_matrix - 2 * dr_matrix + rr_matrix) / rr_matrix
 
     return bin_space, bin_s, bin_theta, tpcf1, tpcf_s2
 
@@ -196,7 +157,6 @@ def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0, s_sqr=False):
         if 1 < i_s < s_bins - 1 and i_mu < mu_bins:
             tpcf_s_mu[i_s, i_mu] = val
     tpcf_s_mu = legendre_util.interpolate(tpcf_s_mu)
-    print(tpcf_s_mu)
     return s_vec, tpcf_s_mu
 
 
@@ -213,7 +173,6 @@ def get_tpcf(fits_file, config):
         the tpcf of s and mu as a 2-d array
     '''
     hdul = fits.open(fits_file)
-    print(hdul.info())
 
     # normalization factors from integration.py
     nRR, nDR, nDD = (lambda h:
@@ -262,9 +221,6 @@ def get_tpcf(fits_file, config):
     tpcf = .5 * (tpcf1 + tpcf2)
     tpcf[np.where(tpcf1 * tpcf2 == 0)] = 0  # get rid of entries where tpcf1 or tpcf2 are zero
     return s_vec, tpcf
-
-
-
 
 
 def legendre_coef(tpcf, l, config=None, mu_bins=0):
@@ -350,13 +306,6 @@ def legendre_to_file():
     tpcf = tpcf_s2
     plt.ylabel(r"$\pi $", fontsize=16)
     plt.xlabel(r"$\sigma $", fontsize=16)
-
-    # plt.imshow(tpcf_pi_sigma.T, origin='lower', extent=extent, vmax=1.2)
-    # plt.title(r'TPCF with')
-    # plt.colorbar()
-    # plt.tight_layout()
-    # plt.show()
-
     hdu = fits.BinTableHDU.from_columns([
         fits.Column(name='s', array=s_vec, format='I'),
         fits.Column(name='tpcf0', array=legendre_coef(tpcf, 0, config=config), format='D'),
@@ -366,16 +315,6 @@ def legendre_to_file():
     ],
         name='legendre')
     hdu.writeto(config.__class__.__name__ + '_legendre.fits')
-
-    # hdu = fits.BinTableHDU.from_columns([
-    #     fits.Column(name='s', array=s_vec, format='I'),
-    #     fits.Column(name='tpcf0', array=legendre_coef(dd, 0, config=config), format='D'),
-    #     fits.Column(name='tpcf2', array=legendre_coef(dd, 2, config=config), format='D'),
-    #     fits.Column(name='tpcf4', array=legendre_coef(dd, 4, config=config), format='D'),
-    #     fits.Column(name='tpcf6', array=legendre_coef(dd, 6, config=config), format='D')
-    # ],
-    #     name='legendre')
-    # hdu.writeto(config.__class__.__name__ + '_legendre.fits')
 
 
 if __name__ == '__main__':

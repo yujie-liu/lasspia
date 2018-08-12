@@ -34,14 +34,15 @@ def getCfgArgs(args):
     return cfgArgs
 
 
-def tpcf_matrix(fits_file, config):
+def tpcf_matrix(fits_file):
     hdul = fits.open(fits_file)
     # normalization factors from integration.py
     nRR, nDR, nDD = (lambda h:
                      (h['normrr'],
                       h['normdr'],
                       h['normdd']))(fits.getheader(fits_file, 'TPCF'))
-    tpcf1d = np.zeros((200, 200))
+    bins = len(hdul[1].data['binCenter']) * 2
+    tpcf1d = np.zeros((bins, bins))
     for tuple in hdul[5].data:
         isigma, ipi, rr, dr, dd, dde2 = tuple
         val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
@@ -58,15 +59,15 @@ def plot():
     args = parser.parse_args()
     config = getInstance(args.configFile)
     fits_file = osp.join(osp.abspath('../data'), args.fitsFile[0])
-    tpcf = tpcf_matrix(fits_file, config)
-    tpcf = skimage.measure.block_reduce(tpcf, (4,4), np.mean)
+    tpcf = tpcf_matrix(fits_file)
+    tpcf = skimage.measure.block_reduce(tpcf, (4, 4), np.mean)
     leng = tpcf.shape
     tpcf = tpcf[int(leng[0] / 2):leng[0], 0:int(leng[1] / 2)]
     tpcf1 = np.arcsinh(tpcf)
     tpcf2 = np.log(tpcf)
     rc('font', family='serif')
     rc('font', size=16)
-    extent=[-200, 0, 0, 200]
+    extent = [-200, 0, 0, 200]
     plt.ylabel(r"$\pi $", fontsize=16)
     plt.xlabel(r"$\sigma $", fontsize=16)
     levels = [0, .6, .8, .9, 0.95, 1, 1.1, 1.2]
@@ -82,7 +83,7 @@ def plot():
     levels = [-1, -.5, -.1, 0, .05, 0.4, 0.7, 1, 1.3, 1.6, 1.9, 2.2]
     plt.gca().invert_xaxis()
     # plt.contour(tpcf2, colors=('k',), levels=levels, extent=extent)
-    plt.contourf(tpcf2, levels = levels, extent=extent)
+    plt.contourf(tpcf2, levels=levels, extent=extent)
     plt.title(r'$\xi (\pi, \sigma)$ in log scale')
     plt.colorbar()
     plt.show()
@@ -103,7 +104,6 @@ def plot():
     plt.title(r'$\xi (\pi, \sigma)$ unscaled')
     plt.colorbar()
     plt.show()
-
 
 
 if __name__ == '__main__':
