@@ -36,13 +36,6 @@ def expand(tpcf, title='', uncertainty=False):
     rc('font', size=16)
     s_vec, tpcf2 = leg.tpcf_to_s_mu(2, int(tpcf.shape[0] / 2), 10000, tpcf)
     tpcf2[np.isnan(tpcf2)] = 0
-    extent = [-400, 400, -400, 400]
-    if title == 'CR':
-        max = 0.032
-    elif title == 'RR':
-        max = 0.016
-    elif title == 'LS':
-        max = 0.8
     if uncertainty:
         filename = 'tpcf_u_legendre.fits'
         try:
@@ -75,30 +68,6 @@ def expand(tpcf, title='', uncertainty=False):
     hdu.writeto(filename)
     hdul = fits.open(filename)
     coef = hdul[1].data
-    # plt.figure(figsize=[7, 6])
-    #
-    # plt.plot(coef['s'], coef['tpcf6'])
-    # plt.plot(coef['s'], coef['tpcf4'])
-    # plt.plot(coef['s'], coef['tpcf2'])
-    # plt.plot(coef['s'], coef['tpcf0'], color="r")
-    # # plt.legend(['l = 0'], loc='upper left')
-    # plt.legend(['l = 6', 'l = 4', 'l = 2', 'l = 0'], loc='upper left')
-    # # plt.title(r'$\widetilde{\xi_l}(s) = \frac{2l+1}{2}\sum_j{\xi(s, \mu_j)P_l(\mu_j)\Delta \mu_j}$')
-    #
-    # if uncertainty:
-    #     plt.xlabel('s')
-    #     plt.ylabel(r'$\Delta \widetilde{\xi}(s) s^2$')
-    #     plt.title('Legendre expansion of tpcf'+title+' uncertainties')
-    #     plt.tight_layout()
-    #     #plt.savefig('/home/yujie/Desktop/Figures/Figure_0714_tpcfv14_'+title+'_u.png')
-    #     pass
-    # else:
-    #     plt.xlabel('s')
-    #     plt.ylabel(r'$\widetilde{\xi}(s) s^2$')
-    #     plt.title('Legendre expansion of tpcf'+title)
-    #     plt.tight_layout()
-    #     plt.savefig('/home/yujie/Desktop/Figures/Figure_0714_tpcfv14_'+title+'.png')
-    #     plt.show()
     return coef['s'], coef['tpcf0'], coef['tpcf2'], coef['tpcf4'], coef['tpcf6']
 
 
@@ -224,6 +193,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(description="Large Scale Structure Probability Integration Algorithm")
     parser.add_argument('txtFile', metavar='txtFile', type=str, nargs=1,
                         help='the txt file for mocks.')
+    # parser.add_argument('-u', action='store_true', help='Set this flag to compute the uncertainty terms')
     args = parser.parse_args()
     data_file = osp.join(osp.abspath('../data'), args.txtFile[0])
     with open(data_file) as f:

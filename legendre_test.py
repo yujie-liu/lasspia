@@ -6,6 +6,7 @@ from matplotlib import rc
 Plot the *_legendre.fits file for testing
 '''
 
+
 def plot():
     from argparse import ArgumentParser
     parser = ArgumentParser(description="Large Scale Structure Probability Integration Algorithm")
@@ -30,6 +31,7 @@ def plot():
 
     plt.tight_layout()
     plt.show()
+
 
 if __name__ == '__main__':
     plot()

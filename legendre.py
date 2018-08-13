@@ -68,33 +68,22 @@ def get_tpcf_sigma_pi(fits_file, config):
     rr_matrix = np.zeros((len(pi_vals), len(sigma_vals)))
     bin_space = pi_vals[1] - pi_vals[0]
     s_bins = int(len(pi_vals) / 2)
-    # put tpcf values into (s, mu) grid
-    # need vectorization for efficiency
+    '''
+    put tpcf values into (s, mu) grid
+    need vectorization for efficiency
+    '''
     for tuple in hdul[5].data:
-
         isigma, ipi, rr, dr, dd, dde2 = tuple
         dd = dd / 2
         sigma = isigma * bin_space - s_bins * bin_space
         pi = ipi * bin_space - s_bins * bin_space
         s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
-        mu = pi / s
-        val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
         if (0 < isigma < bin_s * 2) and (0 <= ipi < bin_s * 2):
-            tpcf[isigma, ipi] = val
             dd_matrix[isigma, ipi] = dd / nDD
             dr_matrix[isigma, ipi] = dr / nDR
             rr_matrix[isigma, ipi] = rr / nRR
 
     leng = tpcf.shape
-
-    tpcf = tpcf[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
-    tpcf = np.lib.pad(tpcf, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
-    tpcf = tpcf.T
-
-    plt.title('TPCF')
-    plt.imshow(tpcf.T, extent=[-200, 200, -200, 200], vmax=-.45, vmin=-.55)
-    plt.colorbar()
-    plt.show()
 
     dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
     dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
@@ -116,9 +105,6 @@ def get_tpcf_sigma_pi(fits_file, config):
                 rr_matrix[i_s, i_p] = 0
 
     tpcf1 = (dd_matrix - 2 * dr_matrix + rr_matrix) / rr_matrix
-    plt.imshow(tpcf1)
-    plt.colorbar()
-    plt.show()
     tpcf1[np.isnan(tpcf1)] = 0
     for i_s in range(bin_s * 2):
         for i_p in range(bin_s * 2):
@@ -131,7 +117,7 @@ def get_tpcf_sigma_pi(fits_file, config):
     return bin_space, bin_s, bin_theta, tpcf1, tpcf_s2
 
 
-def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0, s_sqr=False):
+def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0):
     """
     Convert tpcf(sigma, pi) to tpcf(s, mu)
     :param bin_space:
@@ -149,8 +135,6 @@ def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0, s_sqr=False):
         sigma = isigma * bin_space - s_bins * bin_space
         pi = ipi * bin_space - s_bins * bin_space
         s = max(1e-6, np.sqrt((ratio * sigma) ** 2 + pi ** 2))
-        if s_sqr:
-            val = val * s ** 2
         mu = pi / s
         i_s = int(s / bin_space)
         i_mu = int((mu + 1) * mu_bins / 2)
@@ -189,8 +173,10 @@ def get_tpcf(fits_file, config):
     tpcf = np.zeros((bin_s, bin_theta))
     repeat = 0
     repeat_arr = []
-    # put tpcf values into (s, mu) grid
-    # need vectorization for efficiency
+    '''
+    put tpcf values into (s, mu) grid
+    need vectorization for efficiency
+    '''
     for tuple in hdul[5].data:
         isigma, ipi, rr, dr, dd, dde2 = tuple
         s = (sigma_vals[isigma] ** 2 + pi_vals[ipi] ** 2) ** .5
@@ -198,7 +184,6 @@ def get_tpcf(fits_file, config):
         i_s = int(s / (range_s[1] / bin_s))
         i_mu = int((mu + 1) * bin_theta / 2)
         val = (dd / nDD - 2 * dr / nDR + rr / nRR) / (rr / nRR)
-        # val = val * s**2
         if 2 < s < int(range_s[1] - 2) and i_mu <= bin_theta - 1:
             # record number of overwritten entries
             if tpcf[i_s, i_mu] != 0:
@@ -217,7 +202,7 @@ def get_tpcf(fits_file, config):
             temp[temp == 0] = np.interp(zeros, nonzeros, nonzero_vals)
             tpcf1[i, :] = temp
 
-    tpcf2 = interpolate(tpcf)
+    tpcf2 = legendre_util.interpolate(tpcf)
     tpcf = .5 * (tpcf1 + tpcf2)
     tpcf[np.where(tpcf1 * tpcf2 == 0)] = 0  # get rid of entries where tpcf1 or tpcf2 are zero
     return s_vec, tpcf
@@ -303,15 +288,14 @@ def legendre_to_file():
     bin_space, bin_s, bin_theta, tpcf_pi_sigma, tpcf_pi_sigma_s2 = get_tpcf_sigma_pi(fits_file, config)
     s_vec, tpcf_s2 = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma_s2)
     s_vec, tpcf = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma)
-    tpcf = tpcf_s2
     plt.ylabel(r"$\pi $", fontsize=16)
     plt.xlabel(r"$\sigma $", fontsize=16)
     hdu = fits.BinTableHDU.from_columns([
         fits.Column(name='s', array=s_vec, format='I'),
-        fits.Column(name='tpcf0', array=legendre_coef(tpcf, 0, config=config), format='D'),
-        fits.Column(name='tpcf2', array=legendre_coef(tpcf, 2, config=config), format='D'),
-        fits.Column(name='tpcf4', array=legendre_coef(tpcf, 4, config=config), format='D'),
-        fits.Column(name='tpcf6', array=legendre_coef(tpcf, 6, config=config), format='D')
+        fits.Column(name='tpcf0', array=legendre_coef(tpcf_s2, 0, config=config), format='D'),
+        fits.Column(name='tpcf2', array=legendre_coef(tpcf_s2, 2, config=config), format='D'),
+        fits.Column(name='tpcf4', array=legendre_coef(tpcf_s2, 4, config=config), format='D'),
+        fits.Column(name='tpcf6', array=legendre_coef(tpcf_s2, 6, config=config), format='D')
     ],
         name='legendre')
     hdu.writeto(config.__class__.__name__ + '_legendre.fits')

@@ -1,39 +1,19 @@
-# Fast Calculation for Galaxy Two-Point Correlations
+# Legendre Expansion of Two-Point Correrlation Function
 
-A Python implementation of the algorithm described in [A
-Computationally Efficient Approach for Calculating Galaxy Two-Point
-Correlations](https://arxiv.org/pdf/1611.09892.pdf).
 
 <!-- toc -->
 
-- [Getting Started](#getting-started)
-  * [Prerequisites](#prerequisites)
-  * [Installing](#installing)
-  * [Usage](#usage)
-- [A Complete Example](#a-complete-example)
-  * [Preprocessing](#preprocessing)
-  * [Combinatorial](#combinatorial)
-  * [Integration](#integration)
-- [Parallel and Batch Processing](#parallel-and-batch-processing)
-  * [Parallel and Batch Examples](#parallel-and-batch-examples)
-- [Time-Saving and Memory-Saving Strategies](#time-saving-and-memory-saving-strategies)
-  * [Maximum Delta: Z](#maximum-delta-z)
-  * [Maximum Delta: RA and Dec](#maximum-delta-ra-and-dec)
-- [Subsampling and Z-slicing](#subsampling-and-z-slicing)
-  * [Subsampling](#subsampling)
-  * [Z-Slicing](#z-slicing)
-- [Contributing](#contributing)
-- [Versioning](#versioning)
-- [Authors](#authors)
-- [License](#license)
+- [Prerequisites](#prerequisites)
+- [Installing](#installing)
+- [Usage](#usage)
+  * [Legendre expansion](#legendre-expansion)
+  * [Plotting](#plotting)
+  * [Test with mocks](#test-with-mocks)
+  
 
 <!-- tocstop -->
 
-## Getting Started
-
-Instructions to run the project on your local machine.
-
-### Prerequisites
+## Prerequisites
 
 This implementation depends on the following Python packages:
 * [AstroPy](http://www.astropy.org)
@@ -44,11 +24,11 @@ This implementation depends on the following Python packages:
 The included configurations rely on DR9 data from the Sloan Digital Sky Survey:
 * [SDSS archive](https://data.sdss.org/sas/dr9/boss/lss/)
 
-### Installing
+## Installing
 
 Clone the repository to your local system:
 ```
-git clone https://github.com/betchart/lasspia.git
+git clone https://github.com/yujie-liu/lasspia.git
 ```
 
 If desired, use virtualenv to install the prerequisites:
@@ -64,254 +44,43 @@ cd lasspia/
 ./downloadDR9.py
 ```
 
-Test your installation by running the 'quickscan.py' routine.
+## Usage
+
+### Legendre expansion
+
+* First run Lasspia to get the *_integration.fits file. See [instructions from Lasspia](https://github.com/betchart/lasspia#a-complete-example).
+* Make sure the correct configuration file is in the configs folder.
+* Run the expansion routine with specified config and *_integration.fits file:
 ```
-./lasspia.py configs/cmassS.py routines/quickscan.py
+./legendre.py DR12_finebins.py DR12_finebins_integration.py
+```
+* Instead using `./` to execute, depending on the python environment,
+ `python` or `python3` can also work.
+* After the running is complete, a new fits file 
+named *_legendre.fits will be generated in the current directory.
+
+
+### Plotting
+With the newly generated *_legendre.fits file, we can plot the expansion results:
+```
+./legendre_test DR12_finebins_legendre.py
 ```
 
-### Usage
+### Test with mocks
+For mocks formatted the same as `TwoD_tpcf_*.txt`, run `TwoD_tpcf.py`to generate Legendre expansion and plot the results.
+For example:
+```
+./TwoD_tpcf.py TwoD_tpcf_v11.txt
+```
+This will calculate the sigma scaler that minimizies the l=2 term's distance to 0.
+It also generates a `tpcf_legendre.fits` file. Feed this file to `legendre_test.py`,
+we can get the plot of the expansion results of the mock:
+```
+./legendre_test tpcf_legendre.py
+```
+
 
 Usage syntax and a full list of options can be obtained via the `-h` or `--help` flag:
 ```
 ./lasspia.py --help
 ```
-
-## A Complete Example
-
-We can quickly find the two-point correlation function xi for
-galaxies in the DR9 survey of the southern sky using the included
-configuration `configs/cmassS_coarse.py`.  This configuration differs
-from `configs/cmassS.py` by using fewer bins and not employing any
-strategies to reduce the number of evaluated galaxy pairs.  The
-processing is divided into stages, each with their own corresponding
-routine:
-* `preprocessing.py` histograms the data from the galaxy catalogs
-* `combinatorial.py` makes distributions of galaxy pairs
-* `integration.py` incorporates cosmological data to convert angles and redshift to distances
-
-### Preprocessing
-Run the preprocessing routine, which takes seconds.
-```
-./lasspia.py configs/cmassS_coarse.py routines/preprocessing.py
-```
-View the headers of the output file.
-```
-./lasspia.py configs/cmassS_coarse.py routines/preprocessing.py --show
-```
-Run the preprocessing.plot() method to plot the contents of the output
-file (PDF output)
-```
-./lasspia.py configs/cmassS_coarse.py routines/preprocessing.py --plot
-```
-
-### Combinatorial
-Run the combinatorial routine, which takes about half an hour.
-```
-./lasspia.py configs/cmassS_coarse.py routines/combinatorial.py
-```
-Alternatively, run the combinatorial routine with parallel jobs.
-```
-./lasspia.py configs/cmassS_coarse.py routines/combinatorial.py --nJobs 8 --nCores 4
-```
-Combine the output of the jobs.
-```
-./lasspia.py configs/cmassS_coarse.py routines/combinatorial.py --nJobs 8
-```
-View the headers of the output file.
-```
-./lasspia.py configs/cmassS_coarse.py routines/combinatorial.py --show
-```
-
-### Integration
-Run the integration routine, which takes seconds.
-```
-./lasspia.py configs/cmassS_coarse.py routines/integration.py
-```
-If you get "MemoryError", you can break the integration into slices of
-bins of theta by passing `--nJobs` and `--nCores` (or `--iJob`)
-arguments, and combining the output as in the prior step example.
-
-View the headers of the output file.
-```
-./lasspia.py configs/cmassS_coarse.py routines/integration.py --show
-```
-Run the integration.plot() method.
-```
-./lasspia.py configs/cmassS_coarse.py routines/integration.py --plot
-```
-
-## Parallel and Batch Processing
-
-The `combinatorial` and `integration` routines respond to the option
-`--nJobs` to break processing into parallelizable units.  Use in
-conjunction with the `--nCores` option to specify the number of
-processes to run locally in parallel, or with the `--iJob` option to
-specify one (or several) units to process.  Some batch systems which
-accept "job arrays" use an environment variable to specify the job
-index, in which case it may be convenient to specify `--iJobEnv`
-rather than `--iJob`.  After all units have succeeded, their outputs
-may be combined by repeating the `--nJobs` command, absent any of
-`--nCores`, `--iJob`, or `--iJobEnv`.  A minimal Dockerfile is
-included for use with batch systems that run containers.
-
-### Parallel and Batch Examples
-
-To divide into 8 units and compute using 2 parallel processes on your local machine:
-```
-./lasspia.py configs/cmassS_coarse.py routines/combinatorial.py --nJobs 8 --nCores 2
-```
-NB: The `--nCores` option is not appropriate for most batch systems.
-
-To process the first of 16 jobs:
-```
-./lasspia.py configs/cmassS_coarse.py routines/combinatorial.py --nJobs 16 --iJob 0
-```
-Depending on your batch system, this may be a good template for the
-command to run for each job, where the argument to `--iJob` is unique
-for each submission, or is set as part of an array of jobs.
-
-To combine the resulting 8 output files of the first example:
-```
-./lasspia.py configs/cmassS_coarse.py routines/combinatorial.py --nJobs 8
-```
-
-## Time-Saving and Memory-Saving Strategies
-
-There are several optional strategies for reducing the number of
-galaxy-bin combinations considered during the `combinatorial` routine.
-By default, no such option is configured, and all galaxy-bin
-combinations are considered.
-
-### Maximum Delta: Z
-
-The computation of the three-dimensional histogram `u(theta, z_1,
-z_2)` can be lightened by excluding galaxy-bin combinations for which
-the difference in redshift is greater than a threshold of interest.
-Defining such a threshold as a function `maxDeltaZ()` in the
-configuration enables this exclusion.  The principal effect of this
-option is to reduce the amount of memory required for the computation.
-
-### Maximum Delta: RA and Dec
-
-The computation of histograms in `theta` can be expedited by excluding
-galaxy-bin combinations for which the difference in Right Ascension or
-in Declination is greater than a threshold of interest.  Defining such
-thresholds as functions `maxDeltaRA()` and `maxDeltaDec()` (in
-degrees) in the configuration enables such exclusion by implementing
-one of the two strategies explained below.  Such exclusion can
-significantly reduce both the time and memory required for the
-computation.
-
-#### Strategy 1: Proximate Slices
-
-The default strategy, implemented when the configuration function
-`regionBasedCombinations()` is defined as `False`, computes only
-galaxy-bin combinations between proximate pairs of slices.  A pair of
-slices are proximate if at least one of their galaxy-bin combinations
-can be encompassed by a window defined by the configuration functions
-`maxDeltaRA()` and 'maxDeltaDec()`.
-
-In order to be effective, this strategy relies on ordering of the
-input such that each slice is localized to have small variance in
-Right Ascension and Declination.  This ordering takes place in the
-`preprocessing` routine regardless of whether this strategy is
-configured, and is defined by the function
-`lasspia.slicing.xyClustersWhere()`.  This function recursively
-partitions a list of two-dimensional points by their mean along the
-dimension with greater variance, until the number of points under
-consideration is less than a limit.
-
-#### Strategy 2: Regions
-
-Another strategy, implemented when the configuration function
-`regionBasedCombinations()` is defined as `True`, computes only
-galaxy-bin combinations within a region and between a region and its
-neighboring regions.  The configuration functions `maxDeltaRA()` and
-`maxDeltaDec()` define region size.  This strategy does not reduce the
-number of galaxy-bin combinations considered as much as the default
-strategy.
-
-## Subsampling and Z-slicing
-
-### Subsampling
-
-You can use a smaller portion of the catalogs as input to the
-algorithm simply by configuring the desired range for any of redshift
-(`binningZ()`), right ascension (`binningRA()`), or declination
-(`binningDec()`).  Catalog entries that fall outside of the defined
-ranges will be excluded from processing, except that the overall
-normalization factors are calculated from the unfiltered catalogs.
-
-### Z-Slicing
-
-It is possible to process data in multiple configurations of
-subsampled redshift, the results of which can be combined at the
-integration step.  For the result to match a single (un-subsampled
-redshift) configuration, the subsampled redshift ranges must overlap
-by at least `maxDeltaZ`, and the configuration option `nBinsMaskZ`
-must be set to the number bins overlapping the prior (lower z values)
-configuration.  The integration step will omit contributions from
-cells with both z-bin indices less than `nBinsMaskZ`, so that results
-can be combined without double-counting.
-
-In order to avoid the need to laboriously write and maintain multiple
-mutually consistent z-slicing configurations, one can define a
-multi-configuration in which consistency is automatic, by using the
-[zSlicing](lasspia/zSlicing.py#L8) function.  The
-returned configuration class has an automatically defined attribute
-`iSliceZ` which can be used to customize the definition of each
-subsample in z, for example by creating a child configuration in which
-`binningRA` is dependent in `iSliceZ`.
-
-For convenience, one can implement mutually consistent z-slicing by
-defining a pair of configuration functions in a class inheriting from
-that returned by `zSlicing`.  The first configuration function,
-`zBreaks`, is an ordered list consisting of the lower bound of the
-lowest z range and the desired upper bound of each z range.  The
-second configuration function, `zMaxBinWidths`, is a corresponding
-list of desired maximum bin widths for each range.  The actual ranges
-and bin widths used may vary slightly from those configured due to the
-constraint that ranges overlap exactly at bin boundaries.
-
-An example configuration showing the use of the `zSlicing` class
-function and the `zBreaks` and `zMaxBinWidths` configuration options
-is provided in
-[cmassS_subsample_byZ.py](configs/cmassS_subsample_byZ.py).
-This configuration defines two slices in z.  The first slice may be
-processed with the following series of commands.
-```
-./lasspia.py configs/cmassS_subsample_byZ.py routines/preprocessing.py --iSliceZ 0
-./lasspia.py configs/cmassS_subsample_byZ.py routines/combinatorial.py --iSliceZ 0
-./lasspia.py configs/cmassS_subsample_byZ.py routines/integration.py --iSliceZ 0
-```
-The second slice may be processed by running the same series of
-commands with `--iSliceZ 1`.  Each slice may be analyzed individually, for example:
-```
-./lasspia.py configs/cmassS_subsample_byZ.py routines/integration.py --iSliceZ 0 --plot
-```
-Alternatively, the slices may be combined at the integration step by omitting the `--iSliceZ` option:
-```
-./lasspia.py configs/cmassS_subsample_byZ.py routines/integration.py
-```
-and the combined result may be subsequently analyzed.
-```
-./lasspia.py configs/cmassS_subsample_byZ.py routines/integration.py --plot
-```
-
-## Contributing
-
-Pending
-
-## Versioning
-
-Pending
-
-## Authors
-
-* **Burton Betchart** - *Initial work* - [betchart](https://github.com/betchart)
-
-See also the list of [contributors](https://github.com/betchart/lasspia/contributors) who participated in this project.
-
-## License
-
-Pending
