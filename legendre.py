@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import sys
 import os.path as osp
 from astropy.io import fits
@@ -34,7 +35,7 @@ def getCfgArgs(args):
     return cfgArgs
 
 
-def get_tpcf_sigma_pi(fits_file, config):
+def get_tpcf_sigma_pi(fits_file, config, dd_scale=False, dr_scale=False, rr_scale=False):
     """
     Calculate tpcf(sigma, pi) from integration.fits file for plotting purpose
     :param fits_file: filename
@@ -92,7 +93,12 @@ def get_tpcf_sigma_pi(fits_file, config):
     rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]]
     rr_matrix = np.lib.pad(rr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
 
-    dd_matrix = dd_matrix * 2
+    if dd_scale:
+        dd_matrix = dd_matrix * 2
+    if dr_scale:
+        dr_matrix = dr_matrix * 2
+    if rr_scale:
+        rr_matrix = rr_matrix * 2
 
     for i_s in range(bin_s * 2):
         for i_p in range(bin_s * 2):
@@ -278,6 +284,13 @@ def legendre_to_file():
                         help='A python file containing a subclass of lasspia.configuration of the same name.')
     parser.add_argument('fitsFile', metavar='fitsFile', type=str, nargs=1,
                         help='FITS file.')
+    parser.add_argument('-p', action='store_true', help='Set this flag to show tpcf plot')
+    parser.add_argument('-dd', action='store_true',
+                        help='Set this flag to scale DD by a factor of 2 in calculation of tpcf')
+    parser.add_argument('-dr', action='store_true',
+                        help='Set this flag to scale DR by a factor of 2 in calculation of tpcf')
+    parser.add_argument('-rr', action='store_true',
+                        help='Set this flag to scale RR by a factor of 2 in calculation of tpcf')
     args = parser.parse_args()
     config = getInstance(args.configFile)
     fits_file = osp.join(osp.abspath('../data'), args.fitsFile[0])
@@ -285,9 +298,20 @@ def legendre_to_file():
     rc('font', size=16)
     plt.tight_layout()
 
-    bin_space, bin_s, bin_theta, tpcf_pi_sigma, tpcf_pi_sigma_s2 = get_tpcf_sigma_pi(fits_file, config)
+    bin_space, bin_s, bin_theta, tpcf_pi_sigma, tpcf_pi_sigma_s2 = \
+        get_tpcf_sigma_pi(fits_file, config, args.dd, args.dr, args.rr)
     s_vec, tpcf_s2 = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma_s2)
     s_vec, tpcf = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma)
+    leng = tpcf.shape[0]
+    if args.p:
+        legendre_util.plot_threshold(tpcf_pi_sigma,
+                                     extent=[-bin_space * bin_s, bin_space * bin_s, -bin_space * bin_s, bin_space * bin_s],
+                                     title=r'TPCF')
+        legendre_util.plot_threshold(tpcf_pi_sigma_s2,
+                                     extent=[-bin_space * bin_s, bin_space * bin_s, -bin_space * bin_s,
+                                             bin_space * bin_s],
+                                     title=r'TPCF with $s^2$')
+
     plt.ylabel(r"$\pi $", fontsize=16)
     plt.xlabel(r"$\sigma $", fontsize=16)
     hdu = fits.BinTableHDU.from_columns([
@@ -298,7 +322,12 @@ def legendre_to_file():
         fits.Column(name='tpcf6', array=legendre_coef(tpcf_s2, 6, config=config), format='D')
     ],
         name='legendre')
-    hdu.writeto(config.__class__.__name__ + '_legendre.fits')
+    filename = config.__class__.__name__ + '_legendre.fits'
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+    hdu.writeto(filename)
 
 
 if __name__ == '__main__':

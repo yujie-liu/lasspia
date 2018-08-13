@@ -77,6 +77,22 @@ def plot_contourf(tpcf, vmin, vmax, levels, extent):
     plt.tight_layout()
     plt.show()
 
+def plot_threshold(tpcf, extent, title):
+    tpcf_sorted = tpcf.flatten()
+    tpcf_sorted = sorted(tpcf_sorted)
+    first = int(len(tpcf_sorted)/20)
+    last = first * 19
+    rc('font', family='serif')
+    rc('font', size=16)
+    plt.tight_layout()
+    plt.ylabel(r"$\pi $", fontsize=16)
+    plt.xlabel(r"$\sigma $", fontsize=16)
+    plt.imshow(tpcf, extent=extent, vmax=tpcf_sorted[last], vmin=tpcf_sorted[first])
+    plt.title(title)
+    plt.colorbar()
+    plt.show()
+
+
 
 def interpolate(tpcf, axis=0, threshold=10):
     """
