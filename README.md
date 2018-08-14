@@ -101,13 +101,21 @@ With the newly generated *_legendre.fits file, we can plot the expansion results
 
 ### Test with mocks
 For mocks formatted the same as `TwoD_tpcf_*.txt`, run `TwoD_tpcf.py`to generate Legendre expansion and plot the results.
+Besides the data file to use, one more parameter that needs to be specified
+is `type`: one of `CR`, `RR` and `LS`
 For example:
 ```
-./TwoD_tpcf.py TwoD_tpcf_v11.txt
+./TwoD_tpcf.py TwoD_tpcf_v11.txt CR
 ```
-This will calculate the sigma scaler that minimizies the l=2 term's distance to 0.
-It also generates a `tpcf_legendre.fits` file. Feed this file to `legendre_test.py`,
-we can get the plot of the expansion results of the mock:
+This will calculate the sigma scaler that minimizes the l=2 term's distance to 0
+using Newton's method of optimization. The number of iterations depends
+on when the calculated value converges (practically the calculation
+terminates when the difference
+between the last two results is under 1e-4).
+
+Like running `legendre.py`, running `TwoD_tpcf.py` also generates a `tpcf_legendre.fits` file. 
+Feed this file to `legendre_test.py`,
+we can get the plot of the expansion results of the mock with the specified type:
 ```
 ./legendre_test tpcf_legendre.py
 ```

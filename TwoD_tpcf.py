@@ -193,7 +193,15 @@ if __name__ == '__main__':
     parser = ArgumentParser(description="Large Scale Structure Probability Integration Algorithm")
     parser.add_argument('txtFile', metavar='txtFile', type=str, nargs=1,
                         help='the txt file for mocks.')
-    # parser.add_argument('-u', action='store_true', help='Set this flag to compute the uncertainty terms')
+    parser.add_argument('type', metavar='type', type=str, nargs=1,
+                        help='one of \'CR\', \'RR\' and \'LS\' ')
+    parser.add_argument('-p', action='store_true', help='Set this flag to show tpcf plot')
+    parser.add_argument('-dd', action='store_true',
+                        help='Set this flag to scale DD by a factor of 2 in calculation of tpcf')
+    parser.add_argument('-dr', action='store_true',
+                        help='Set this flag to scale DR by a factor of 2 in calculation of tpcf')
+    parser.add_argument('-rr', action='store_true',
+                        help='Set this flag to scale RR by a factor of 2 in calculation of tpcf')
     args = parser.parse_args()
     data_file = osp.join(osp.abspath('../data'), args.txtFile[0])
     with open(data_file) as f:
@@ -206,6 +214,7 @@ if __name__ == '__main__':
     bin_size = max_sigma - int(content[i].split()[0])
     size = int((max_sigma - min_sigma) / bin_size + 1) * 2
     content = content[1:]
+    tpcf = np.zeros((size, size))
     tpcfCR1 = np.zeros((size, size))
     tpcfRR1 = np.zeros((size, size))
     tpcfLS1 = np.zeros((size, size))
@@ -232,6 +241,12 @@ if __name__ == '__main__':
         'RR': [],
         'LS': []
     }
-    print(find_min(tpcfCR1))
-    print(find_min(tpcfRR1))
-    print(find_min(tpcfLS1))
+    if args.type[0] == 'CR':
+        tpcf = tpcfCR1
+    elif args.type[0] == 'RR':
+        tpcf = tpcfRR1
+    elif args.type[0] == 'LS':
+        tpcf = tpcfLS1
+    #find_min(tpcfCR1)
+    print(find_min(tpcf))
+
