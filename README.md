@@ -91,6 +91,7 @@ because the calculation of tpcf is `(DD-2DR+RR)/RR`, where if any value in RR is
 this warning will be raised. 
 * For a file `*_integration.fits`, if the file `*_legendre.fits` already exists, 
 running `legendre.py` on it again will overwrite `*_legendre.fits`.
+* All the input fits files are expected to be found in the `../Data` folder.
 
 ### Plotting
 With the newly generated *_legendre.fits file, we can plot the expansion results:

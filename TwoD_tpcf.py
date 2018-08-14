@@ -232,4 +232,6 @@ if __name__ == '__main__':
         'RR': [],
         'LS': []
     }
-    find_min(tpcfCR1)
+    print(find_min(tpcfCR1))
+    print(find_min(tpcfRR1))
+    print(find_min(tpcfLS1))
