@@ -73,7 +73,7 @@ def expand(tpcf, title='', uncertainty=False):
 
 def find_min2(tpcf, r=1, delta_x=.1):
     leng = tpcf.shape
-    step = .1
+    step = .05
     current = r
     for j in range(7):
         vals = []
@@ -86,13 +86,14 @@ def find_min2(tpcf, r=1, delta_x=.1):
         print(index)
         r = r - step * 5 + step * (index)
         step = step / 5
+        print(vals)
         print(r)
 
 
 def find_min3(tpcf, r=1, delta_x=.1):
     leng = tpcf.shape
     vals = []
-    step = .005
+    step = .05
     for i in np.arange(-.3, .3, step):
         tpcf1 = transform(tpcf, r + i)
         tpcf1 = np.lib.pad(tpcf1, ((leng[0], 0), (leng[1], 0)), 'reflect')
@@ -100,7 +101,8 @@ def find_min3(tpcf, r=1, delta_x=.1):
         vals.append(abs(o2_1.min()))
     index = np.argmin(vals)
     print(index)
-    r = r - step * 60 + step * (index)
+    r = r - step * 6 + step * (index)
+    print(vals)
     print(r)
 
 
