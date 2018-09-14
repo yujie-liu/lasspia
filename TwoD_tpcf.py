@@ -71,6 +71,39 @@ def expand(tpcf, title='', uncertainty=False):
     return coef['s'], coef['tpcf0'], coef['tpcf2'], coef['tpcf4'], coef['tpcf6']
 
 
+def find_min2(tpcf, r=1, delta_x=.1):
+    leng = tpcf.shape
+    step = .1
+    current = r
+    for j in range(7):
+        vals = []
+        for i in np.arange(- step * 5, step * 5, step):
+            tpcf1 = transform(tpcf, r + i)
+            tpcf1 = np.lib.pad(tpcf1, ((leng[0], 0), (leng[1], 0)), 'reflect')
+            s_1, o0_1, o2_1, o4_1, o6_1 = expand(tpcf1)
+            vals.append(abs(o2_1.min()))
+        index = np.argmin(vals)
+        print(index)
+        r = r - step * 5 + step * (index)
+        step = step / 5
+        print(r)
+
+
+def find_min3(tpcf, r=1, delta_x=.1):
+    leng = tpcf.shape
+    vals = []
+    step = .005
+    for i in np.arange(-.3, .3, step):
+        tpcf1 = transform(tpcf, r + i)
+        tpcf1 = np.lib.pad(tpcf1, ((leng[0], 0), (leng[1], 0)), 'reflect')
+        s_1, o0_1, o2_1, o4_1, o6_1 = expand(tpcf1)
+        vals.append(abs(o2_1.min()))
+    index = np.argmin(vals)
+    print(index)
+    r = r - step * 60 + step * (index)
+    print(r)
+
+
 def find_min(tpcf, r=1, delta_x=.1):
     '''
     Find the sigma-scaler that results in the smallest l=2 term
@@ -83,19 +116,30 @@ def find_min(tpcf, r=1, delta_x=.1):
     '''
     leng = tpcf.shape
     while True:
-        tpcf1 = transform(tpcf, r + delta_x)
+        tpcf1 = transform(tpcf, r)
         tpcf1 = np.lib.pad(tpcf1, ((leng[0], 0), (leng[1], 0)), 'reflect')
-        tpcf2 = transform(tpcf, r)
+        tpcf2 = transform(tpcf, r + delta_x)
         tpcf2 = np.lib.pad(tpcf2, ((leng[0], 0), (leng[1], 0)), 'reflect')
-        s, o0, o2, o4, o6 = expand(tpcf1)
-        large = abs(o2.min())
-        s, o0, o2, o4, o6 = expand(tpcf2)
-        small = abs(o2.min())
-        diff = (large - small) / delta_x
-        new_r = r - small / diff
-        if abs(new_r - r) < 1e-4:
+        tpcf3 = transform(tpcf, r - delta_x)
+        tpcf3 = np.lib.pad(tpcf3, ((leng[0], 0), (leng[1], 0)), 'reflect')
+        s_1, o0_1, o2_1, o4_1, o6_1 = expand(tpcf1)
+        v1 = abs(o2_1.min())
+        s_2, o0_2, o2_2, o4_2, o6_2 = expand(tpcf2)
+        v2 = abs(o2_2.min())
+        s_3, o0_3, o2_3, o4_3, o6_3 = expand(tpcf3)
+        v3 = abs(o2_3.min())
+
+        diff1 = (v2 - v3) / delta_x / 2
+        if abs(diff1) < 1e-5:
+            break
+        snd_1 = (v1 - v3) / delta_x
+        snd_2 = (v2 - v1) / delta_x
+        diff2 = (snd_2 - snd_1) / delta_x
+        new_r = r - diff1 / diff2
+        if abs(new_r - r) < 1e-3:
             break
         r = new_r
+        print(diff1, diff2)
         print('Current r: ', r)
     print('R that minimizes l=2 term: ', r)
     return r
@@ -103,7 +147,6 @@ def find_min(tpcf, r=1, delta_x=.1):
 
 def plot():
     '''
-
     :return:
     '''
     names = ['CR', 'RR', 'LS']
@@ -247,6 +290,5 @@ if __name__ == '__main__':
         tpcf = tpcfRR1
     elif args.type[0] == 'LS':
         tpcf = tpcfLS1
-    #find_min(tpcfCR1)
-    print(find_min(tpcf))
-
+    # find_min(tpcfCR1, delta_x=.5)
+    find_min2(tpcf, delta_x=.01)

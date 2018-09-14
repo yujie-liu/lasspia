@@ -7,6 +7,7 @@ from scipy.special import legendre
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import legendre_util
+import TwoD_tpcf as twod
 
 
 # From lasspia.py
@@ -303,6 +304,7 @@ def legendre_to_file():
     s_vec, tpcf_s2 = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma_s2)
     s_vec, tpcf = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma)
     leng = tpcf.shape[0]
+    #twod.find_min2(tpcf_s2)
     if args.p:
         legendre_util.plot_threshold(tpcf_pi_sigma,
                                      extent=[-bin_space * bin_s, bin_space * bin_s, -bin_space * bin_s, bin_space * bin_s],
