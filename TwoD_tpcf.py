@@ -71,17 +71,17 @@ def expand(tpcf, title='', uncertainty=False):
     return coef['s'], coef['tpcf0'], coef['tpcf2'], coef['tpcf4'], coef['tpcf6']
 
 
-def find_min2(tpcf, r=1, delta_x=.1):
+def find_min2(tpcf, r=1, l=2, step=.1):
     leng = tpcf.shape
-    step = .05
     current = r
+    l_index = int(l / 2) + 1
     for j in range(7):
         vals = []
         for i in np.arange(- step * 5, step * 5, step):
             tpcf1 = transform(tpcf, r + i)
             tpcf1 = np.lib.pad(tpcf1, ((leng[0], 0), (leng[1], 0)), 'reflect')
-            s_1, o0_1, o2_1, o4_1, o6_1 = expand(tpcf1)
-            vals.append(abs(o2_1.min()))
+            coef = expand(tpcf1)
+            vals.append(max(abs(coef[l_index].min()), abs(coef[l_index].max())))
         index = np.argmin(vals)
         print(index)
         r = r - step * 5 + step * (index)
@@ -98,7 +98,7 @@ def find_min3(tpcf, r=1, delta_x=.1):
         tpcf1 = transform(tpcf, r + i)
         tpcf1 = np.lib.pad(tpcf1, ((leng[0], 0), (leng[1], 0)), 'reflect')
         s_1, o0_1, o2_1, o4_1, o6_1 = expand(tpcf1)
-        vals.append(abs(o2_1.min()))
+        vals.append(max(abs(o2_1.min()), abs(o2_1.max())))
     index = np.argmin(vals)
     print(index)
     r = r - step * 6 + step * (index)
@@ -125,11 +125,11 @@ def find_min(tpcf, r=1, delta_x=.1):
         tpcf3 = transform(tpcf, r - delta_x)
         tpcf3 = np.lib.pad(tpcf3, ((leng[0], 0), (leng[1], 0)), 'reflect')
         s_1, o0_1, o2_1, o4_1, o6_1 = expand(tpcf1)
-        v1 = abs(o2_1.min())
+        v1 = max(abs(o2_1.min()), abs(o2_1.max()))
         s_2, o0_2, o2_2, o4_2, o6_2 = expand(tpcf2)
-        v2 = abs(o2_2.min())
+        v2 = max(abs(o2_2.min()), abs(o2_2.max()))
         s_3, o0_3, o2_3, o4_3, o6_3 = expand(tpcf3)
-        v3 = abs(o2_3.min())
+        v3 = max(abs(o2_3.min()), abs(o2_3.max()))
 
         diff1 = (v2 - v3) / delta_x / 2
         if abs(diff1) < 1e-5:
@@ -145,6 +145,33 @@ def find_min(tpcf, r=1, delta_x=.1):
         print('Current r: ', r)
     print('R that minimizes l=2 term: ', r)
     return r
+
+
+def find_min_plot(tpcf, name, r=1, step=.1):
+    vals_arr = []
+    r_range = np.arange(.5, 1.5, step)
+    for l in range(0, 7, 2):
+        index = int(l / 2) + 1
+        leng = tpcf.shape
+        vals = []
+        for i in np.arange(-.5, .5, step):
+            tpcf1 = transform(tpcf, r + i)
+            tpcf1 = np.lib.pad(tpcf1, ((leng[0], 0), (leng[1], 0)), 'reflect')
+            coef = expand(tpcf1)
+            vals.append(max(abs(coef[index].min()), abs(coef[index].max())))
+        vals_arr.append(vals)
+    plt.figure(figsize=[8, 6])
+    plt.plot(r_range, vals_arr[3])
+    plt.plot(r_range, vals_arr[2])
+    plt.plot(r_range, vals_arr[1])
+    plt.plot(r_range, vals_arr[0])
+    plt.legend(['l = 6', 'l = 4', 'l = 2', 'l = 0'], loc='upper left')
+    plt.ylabel(r"Minimum of expansion results", fontsize=16)
+    plt.xlabel(r"$\sigma $ ratio", fontsize=16)
+    # plt.title(r'Minimum of Legendre expansion results with $s^2$ (' + name +')')
+    plt.tight_layout()
+    plt.savefig('/home/yujie/Desktop/Figures/Figure_0921-_CR.png')
+    plt.show()
 
 
 def plot():
@@ -231,6 +258,63 @@ def plot():
         plt.show()
 
 
+def tpcf_results(fits_file, bin_space=2, bin_s=100, dd_scale=False, dr_scale=False, rr_scale=False):
+    hdul = fits.open(fits_file)
+    tpcf = np.zeros((bin_s, bin_s))
+    tpcf_s2 = np.zeros((bin_s, bin_s))
+    dd_matrix = np.zeros((bin_s, bin_s))
+    dr_matrix = np.zeros((bin_s, bin_s))
+    rr_matrix = np.zeros((bin_s, bin_s))
+    nDD = 0
+    nRR = 0
+    nDR = 0
+    for tuple in hdul[1].data:
+        isigma, ipi, rr, dr, dd, dde2 = tuple
+        dd = dd / 2
+        sigma = isigma * bin_space - bin_s * bin_space
+        pi = ipi * bin_space - bin_s * bin_space
+        s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
+        nDD = nDD + dd
+        nDR = nDR + dr
+        nRR = nRR + rr
+
+    leng = tpcf.shape
+
+    dd_matrix = dd_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]] / sum(dd_matrix)
+    dd_matrix = np.lib.pad(dd_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    dr_matrix = dr_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]] / sum(dr_matrix)
+    dr_matrix = np.lib.pad(dr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+    rr_matrix = rr_matrix[int(leng[0] / 2):leng[0], int(leng[1] / 2):leng[1]] / sum(rr_matrix)
+    rr_matrix = np.lib.pad(rr_matrix, ((int(leng[0] / 2), 0), (int(leng[1] / 2), 0)), 'reflect')
+
+    if dd_scale:
+        dd_matrix = dd_matrix * 2
+    if dr_scale:
+        dr_matrix = dr_matrix * 2
+    if rr_scale:
+        rr_matrix = rr_matrix * 2
+    for i_s in range(bin_s * 2):
+        for i_p in range(bin_s * 2):
+            sigma = i_s * bin_space - bin_s * bin_space
+            pi = i_p * bin_space - bin_s * bin_space
+            s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
+            if s > 300:
+                dd_matrix[i_s, i_p] = 0
+                dr_matrix[i_s, i_p] = 0
+                rr_matrix[i_s, i_p] = 0
+
+    tpcf1 = (dd_matrix - 2 * dr_matrix + rr_matrix) / rr_matrix
+    tpcf1[np.isnan(tpcf1)] = 0
+    for i_s in range(bin_s * 2):
+        for i_p in range(bin_s * 2):
+            sigma = i_s * bin_space - bin_s * bin_space
+            pi = i_p * bin_space - bin_s * bin_space
+            s = max(1e-6, np.sqrt(sigma ** 2 + pi ** 2))
+            if s < 300:
+                tpcf_s2[i_s, i_p] = s ** 2 * tpcf1[i_s, i_p]
+    return tpcf1, tpcf_s2
+
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
     import os.path as osp
@@ -249,6 +333,8 @@ if __name__ == '__main__':
                         help='Set this flag to scale RR by a factor of 2 in calculation of tpcf')
     args = parser.parse_args()
     data_file = osp.join(osp.abspath('../data'), args.txtFile[0])
+    # tpcf = tpcf_results(data_file)
+    # find_min_plot(tpcf)
     with open(data_file) as f:
         content = f.read().splitlines()
     max_sigma = int(content[len(content) - 1].split()[0])
@@ -292,5 +378,6 @@ if __name__ == '__main__':
         tpcf = tpcfRR1
     elif args.type[0] == 'LS':
         tpcf = tpcfLS1
-    # find_min(tpcfCR1, delta_x=.5)
-    find_min2(tpcf, delta_x=.01)
+
+    # find_min2(tpcf)
+    find_min_plot(tpcf, args.type[0])

@@ -124,7 +124,7 @@ def get_tpcf_sigma_pi(fits_file, config, dd_scale=False, dr_scale=False, rr_scal
     return bin_space, bin_s, bin_theta, tpcf1, tpcf_s2
 
 
-def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0):
+def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0, s_sqr=False):
     """
     Convert tpcf(sigma, pi) to tpcf(s, mu)
     :param bin_space:
@@ -146,7 +146,10 @@ def tpcf_to_s_mu(bin_space, s_bins, mu_bins, tpcf, ratio=1.0):
         i_s = int(s / bin_space)
         i_mu = int((mu + 1) * mu_bins / 2)
         if 1 < i_s < s_bins - 1 and i_mu < mu_bins:
-            tpcf_s_mu[i_s, i_mu] = val
+            if s_sqr:
+                tpcf_s_mu[i_s, i_mu] = val * (s**2)
+            else:
+                tpcf_s_mu[i_s, i_mu] = val
     tpcf_s_mu = legendre_util.interpolate(tpcf_s_mu)
     return s_vec, tpcf_s_mu
 
@@ -304,7 +307,7 @@ def legendre_to_file():
     s_vec, tpcf_s2 = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma_s2)
     s_vec, tpcf = tpcf_to_s_mu(bin_space, bin_s, bin_theta, tpcf_pi_sigma)
     leng = tpcf.shape[0]
-    twod.find_min2(tpcf_s2)
+    twod.find_min_plot(tpcf_s2, 'CR')
     if args.p:
         legendre_util.plot_threshold(tpcf_pi_sigma,
                                      extent=[-bin_space * bin_s, bin_space * bin_s, -bin_space * bin_s, bin_space * bin_s],
